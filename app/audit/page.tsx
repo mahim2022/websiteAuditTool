@@ -233,7 +233,7 @@ export default function AuditPage() {
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}>
-            🔍 Website Audit
+            🔍Website Audit
           </h1>
           <p style={{ color: '#6b7280', fontSize: '14px' }}>
             Analyze your website for performance, security, SEO, and accessibility issues.
@@ -256,6 +256,7 @@ export default function AuditPage() {
                 borderRadius: '8px',
                 fontSize: '14px',
                 fontFamily: 'inherit',
+                color: '#000',
               }}
             />
             <button
