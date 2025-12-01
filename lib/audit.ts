@@ -62,6 +62,31 @@ function safeOrigin(input: string) {
   }
 }
 
+// Check environment to see if this site should be force-marked as 'crappy'
+function isCrappySiteMatch(targetUrl: string) {
+  try {
+    const env = process?.env?.CRAPPY_SITE_URLS || process?.env?.CRAPPY_SITE_URL;
+    if (!env) return false;
+    const entries = String(env).split(',').map(s => s.trim()).filter(Boolean);
+    if (entries.length === 0) return false;
+
+    const target = new URL(targetUrl);
+    for (const e of entries) {
+      try {
+        // allow either full URLs or hostnames/origins
+        const candidate = new URL(e);
+        if (candidate.origin === target.origin) return true;
+      } catch {
+        // not a full URL, compare hostnames or substring
+        if (target.host === e || target.hostname === e || target.href.includes(e)) return true;
+      }
+    }
+  } catch {
+    // ignore errors and default to no match
+  }
+  return false;
+}
+
 // Estimate performance metrics from response time and HTML size
 function estimateMetrics(responseTimeMs: number, htmlSize: number) {
   // TTFB is roughly the response time to first byte
@@ -239,6 +264,39 @@ export async function runAudit(targetUrl: string): Promise<AuditResult> {
     score: 0,
     error: null,
   };
+
+  // Short-circuit: if this target is marked in .env as a 'crappy' site, return intentionally poor metrics
+  try {
+    if (isCrappySiteMatch(targetUrl)) {
+      result.status = 200;
+      result.responseTimeMs = 8000;
+      result.contentType = 'text/html';
+      result.isHttps = targetUrl.startsWith('https:');
+      result.hasHsts = false;
+      result.hasMixedContent = true;
+      result.ttfbMs = 1200;
+      result.fcpMs = 5000;
+      result.lcpMs = 7000;
+      result.title = 'Slow, insecure site';
+      result.metaDescription = 'This site is intentionally flagged as poor in the dev environment.';
+      result.h1Count = 0;
+      result.totalImages = 8;
+      result.imgWithoutAlt = 8;
+      result.imageIssues = Array.from({ length: 5 }).map((_, i) => ({ src: `image-${i}.jpg`, alt: true, missingFormats: true, oversized: true }));
+      result.totalLinks = 20;
+      result.brokenLinks = Array.from({ length: 5 }).map((_, i) => ({ url: `broken-link-${i}`, statusCode: 404, broken: true }));
+      result.externalLinks = 12;
+      result.scriptsCount = 12;
+      result.inlineStylesCount = 6;
+      result.hasRobots = false;
+      result.hasSitemap = false;
+      result.redirects = [{ type: 'other', message: 'Inconsistent redirects detected' }];
+      result.score = 8;
+      return result;
+    }
+  } catch (err) {
+    // ignore and continue with a normal audit if something goes wrong with env parsing
+  }
 
   let html = '';
   let origin = safeOrigin(targetUrl);
